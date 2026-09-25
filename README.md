@@ -10,6 +10,8 @@ A small suite of **client-side** GitHub tools for one question: *when did this c
 | [`commit.html`](commit.html) | **Where Is My Commit** — SHA → first release/tag |
 | [`pr.html`](pr.html) | **Where Is My PR** — PR number/URL → first release/tag |
 | [`contains.html`](contains.html) | **Is It In This Version?** — yes/no for a tag |
+| [`package.html`](package.html) | **Which Version Has This Package?** — monorepo path or npm name |
+| [`graph.html`](graph.html) | **Strimzi Dependency Graph** — which release has which Maven package (stored ~2y graphs) |
 | [`between.html`](between.html) | **What Changed Between** — commits from tag A → B |
 | [`unreleased.html`](unreleased.html) | **What's Unreleased** — default branch since latest tag |
 
@@ -44,6 +46,16 @@ Project site subpath: `https://<user>.github.io/<repo>/`
 1. Push to GitHub  
 2. **Settings → Pages → Source**: **GitHub Actions**  
 3. Deploy workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
+
+## Strimzi dependency graphs
+
+Stored under [`data/strimzi/`](data/strimzi/) (last ~2 years of releases). Built from Strimzi Maven poms + Cruise Control POMs — no container pulls.
+
+```bash
+python3 scripts/scan-strimzi.py --years 2
+```
+
+Then open [`graph.html`](graph.html) and search for e.g. `commons-beanutils` or browse a release tree.
 
 ## API usage
 

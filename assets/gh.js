@@ -224,18 +224,115 @@
   }
 
   async function latestVersionTag(owner, repo) {
+    const tags = await fetchVersionTags(owner, repo, false);
+    if (!tags.length) return null;
+    return tags[tags.length - 1].tag;
+  }
+
+  async function fetchVersionTags(owner, repo, includePrerelease) {
     const res = await gh(`/repos/${owner}/${repo}/git/matching-refs/tags`);
     const refs = await res.json();
     const versions = [];
     for (const ref of refs) {
       const tag = ref.ref.replace(/^refs\/tags\//, "");
       const ver = parseVersion(tag);
-      if (!ver || ver.rc != null) continue;
+      if (!ver) continue;
+      if (!includePrerelease && ver.rc != null) continue;
       versions.push({ tag, version: ver });
     }
-    if (!versions.length) return null;
     versions.sort((a, b) => cmpVersion(a.version, b.version));
-    return versions[versions.length - 1].tag;
+    return versions;
+  }
+
+  /** True if path exists in the tree at ref (tag/branch/sha). */
+  async function pathExistsAtRef(owner, repo, path, ref) {
+    const clean = String(path).replace(/^\/+/, "").replace(/\/+$/, "");
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${clean
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/")}?ref=${encodeURIComponent(ref)}`,
+      { headers: headers() }
+    );
+    const remaining = res.headers.get("X-RateLimit-Remaining");
+    if (remaining !== null) gh.lastRemaining = remaining;
+    if (res.status === 404) return false;
+    if (res.status === 403 || res.status === 429) {
+      throw new Error("GitHub rate limit hit. Add a personal access token and try again.");
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message || `GitHub API error (${res.status})`);
+    }
+    return true;
+  }
+
+  /**
+   * Earliest version tag (by semver) where `path` exists in the tree.
+   * Checks each major.minor line so divergent branches stay correct.
+   */
+  async function findFirstTagWithPath(owner, repo, path, tags, onProgress) {
+    const byLine = new Map();
+    for (const item of tags) {
+      const parts = item.version.parts;
+      const key =
+        parts.length <= 1 ? String(parts[0]) : parts.slice(0, -1).join(".");
+      if (!byLine.has(key)) byLine.set(key, []);
+      byLine.get(key).push(item);
+    }
+
+    let checks = 0;
+    const firstPerLine = [];
+
+    for (const [lineKey, line] of byLine) {
+      const newest = line[line.length - 1];
+      checks += 1;
+      onProgress?.(checks, newest.tag);
+      if (!(await pathExistsAtRef(owner, repo, path, newest.tag))) continue;
+
+      let lo = 0;
+      let hi = line.length - 1;
+      let firstIdx = line.length - 1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        checks += 1;
+        onProgress?.(checks, line[mid].tag);
+        if (await pathExistsAtRef(owner, repo, path, line[mid].tag)) {
+          firstIdx = mid;
+          hi = mid - 1;
+        } else {
+          lo = mid + 1;
+        }
+      }
+      firstPerLine.push({ lineKey, first: line[firstIdx] });
+    }
+
+    firstPerLine.sort((a, b) => cmpVersion(a.first.version, b.first.version));
+    return {
+      first: firstPerLine[0]?.first || null,
+      firstPerLine,
+      checks,
+    };
+  }
+
+  async function latestCommitForPath(owner, repo, path) {
+    const clean = String(path).replace(/^\/+/, "").replace(/\/+$/, "");
+    const res = await gh(
+      `/repos/${owner}/${repo}/commits?path=${encodeURIComponent(clean)}&per_page=1`
+    );
+    const list = await res.json();
+    return list[0] || null;
+  }
+
+  async function fetchNpmPackage(name) {
+    // registry expects @scope%2Fpkg for scoped packages
+    const path = name.startsWith("@")
+      ? name.replace("/", "%2F")
+      : encodeURIComponent(name);
+    const res = await fetch(`https://registry.npmjs.org/${path}`);
+    if (res.status === 404) throw new Error(`npm package not found: ${name}`);
+    if (!res.ok) throw new Error(`npm registry error (${res.status})`);
+    return res.json();
   }
 
   function extractPrNumber(message) {
@@ -266,7 +363,13 @@
     tagContains,
     compare,
     parseVersion,
+    cmpVersion,
     latestVersionTag,
+    fetchVersionTags,
+    pathExistsAtRef,
+    findFirstTagWithPath,
+    latestCommitForPath,
+    fetchNpmPackage,
     extractPrNumber,
   };
 })(window);

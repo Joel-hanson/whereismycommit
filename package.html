@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Which Version Has This Package?</title>
+  <script>
+    (function () {
+      var path = location.pathname;
+      var base;
+      if (/\.github\.io$/i.test(location.hostname)) {
+        var parts = path.split("/").filter(Boolean);
+        base = parts.length ? "/" + parts[0] + "/" : "/";
+      } else {
+        base = path.replace(/\/[^/]*$/, "/") || "/";
+      }
+      var el = document.createElement("base");
+      el.href = base;
+      document.head.insertBefore(el, document.head.firstChild);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/tool.css" />
+  <style>
+    .mode {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .mode-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 520px) {
+      .mode-options { grid-template-columns: 1fr; }
+    }
+    .mode-option {
+      position: relative;
+      display: grid;
+      gap: 0.25rem;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      cursor: pointer;
+    }
+    .mode-option:has(input:checked) {
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 0 1px hsl(var(--primary));
+    }
+    .mode-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mode-option strong {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .mode-option span {
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.4;
+    }
+    .line-list {
+      list-style: none;
+      border-top: 1px solid hsl(var(--border));
+    }
+    .line-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 1.15rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+    .line-list li:last-child { border-bottom: none; }
+    .line-list a {
+      color: hsl(var(--foreground));
+      text-decoration: none;
+    }
+    .line-list a:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap wide">
+    <header>
+      <div class="brand-row">
+        <p class="brand">
+          <span class="brand-mark" aria-hidden="true">pkg</span>
+          Which Version Has This Package?
+        </p>
+        <a class="sibling" href="./">All tools</a>
+      </div>
+      <h1>Find when a subpackage landed in a release</h1>
+      <p class="lede">Monorepo path (e.g. <code>connect/</code>, <code>packages/client</code>) or an npm package name — see which version first included it.</p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <div class="mode">
+        <p class="label">Lookup type</p>
+        <div class="mode-options" role="radiogroup">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="path" checked />
+            <strong>Repo path</strong>
+            <span>Directory or file in the git tree across version tags</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="npm" />
+            <strong>npm package</strong>
+            <span>Published versions from the npm registry</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="path-fields">
+        <div class="field">
+          <label class="label" for="repo">Repository</label>
+          <input class="input" id="repo" type="text" placeholder="owner/repo" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label class="label" for="pkgpath">Subpackage path</label>
+          <p class="hint">e.g. clients · connect · streams · packages/ui · crates/core</p>
+          <input class="input" id="pkgpath" type="text" placeholder="path/to/package" spellcheck="false" />
+        </div>
+        <label class="checkbox-row">
+          <input class="checkbox" type="checkbox" id="include-prerelease" />
+          Include pre-release tags
+        </label>
+      </div>
+
+      <div id="npm-fields" hidden>
+        <div class="field">
+          <label class="label" for="npmname">npm package name</label>
+          <input class="input" id="npmname" type="text" placeholder="@scope/name or package-name" spellcheck="false" />
+        </div>
+      </div>
+
+      <label class="checkbox-row">
+        <input class="checkbox" type="checkbox" id="show-token" />
+        Use a GitHub token (path mode)
+      </label>
+      <div class="field" id="token-field">
+        <label class="label" for="token">Personal access token</label>
+        <p class="hint">Tab-local only · sent only to api.github.com</p>
+        <input class="input" id="token" type="password" placeholder="ghp_…" spellcheck="false" />
+      </div>
+      <button class="btn" type="submit" id="submit">Find versions</button>
+    </form>
+
+    <p class="status" id="status" aria-live="polite"></p>
+    <div class="result" id="result" hidden>
+      <div class="alert" id="verdict">
+        <p class="alert-label" id="verdict-label"></p>
+        <p class="alert-main" id="verdict-main"></p>
+        <p class="alert-sub" id="verdict-sub"></p>
+      </div>
+      <dl class="meta" id="meta"></dl>
+      <div class="list-card" id="lines-card" hidden>
+        <p class="list-card-title" id="lines-title">First tag per release line</p>
+        <ul class="line-list" id="lines-list"></ul>
+      </div>
+      <div class="list-card" id="npm-card" hidden>
+        <p class="list-card-title" id="npm-title">Published versions</p>
+        <ul class="commit-list" id="npm-list"></ul>
+      </div>
+    </div>
+
+    <hr class="separator" />
+    <footer>
+      <strong>Path mode</strong> finds the earliest version tag whose tree contains the path,
+      and which tag first shipped the <em>latest</em> commit touching that path.
+      <strong>npm mode</strong> reads the public registry (first + latest publish).
+      <a href="./">All tools</a>
+    </footer>
+  </div>
+  <script src="assets/gh.js"></script>
+  <script>
+    const {
+      $, parseRepo, setStatus, showResultShell, escapeHtml, rateNote, formatDate,
+      fetchVersionTags, findFirstTagWithPath, pathExistsAtRef, latestCommitForPath,
+      tagContains, fetchNpmPackage,
+    } = WIMC;
+
+    function selectedMode() {
+      return document.querySelector('input[name="mode"]:checked')?.value || "path";
+    }
+
+    function syncMode() {
+      const mode = selectedMode();
+      $("path-fields").hidden = mode !== "path";
+      $("npm-fields").hidden = mode !== "npm";
+      $("repo").required = mode === "path";
+      $("pkgpath").required = mode === "path";
+      $("npmname").required = mode === "npm";
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach((el) => {
+      el.addEventListener("change", syncMode);
+    });
+    syncMode();
+
+    function tagUrl(owner, repo, tag) {
+      return `https://github.com/${owner}/${repo}/releases/tag/${encodeURIComponent(tag)}`;
+    }
+
+    async function runPathMode() {
+      const { owner, repo } = parseRepo($("repo").value);
+      const path = $("pkgpath").value.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+      if (!path) throw new Error("Enter a subpackage path.");
+
+      const includePrerelease = $("include-prerelease").checked;
+
+      setStatus("Checking path on default branch…");
+      const onDefault = await pathExistsAtRef(owner, repo, path, "HEAD");
+      if (!onDefault) {
+        showResultShell({
+          verdictClass: "missing",
+          label: "Path missing",
+          main: "Not on default branch",
+          sub: `<code>${escapeHtml(path)}</code> was not found at HEAD. Check the path spelling.`,
+          metaRows: [["Repo", `${escapeHtml(owner)}/${escapeHtml(repo)}`]],
+        });
+        $("lines-card").hidden = true;
+        $("npm-card").hidden = true;
+        return;
+      }
+
+      setStatus("Loading version tags…");
+      const tags = await fetchVersionTags(owner, repo, includePrerelease);
+      if (!tags.length) throw new Error("No version-like tags found.");
+
+      setStatus(`Scanning ${tags.length} tags for path…`);
+      const { first, firstPerLine, checks } = await findFirstTagWithPath(
+        owner,
+        repo,
+        path,
+        tags,
+        (n, tag) => setStatus(`Path check #${n}: ${tag}…`)
+      );
+
+      setStatus("Finding latest commit for path…");
+      const latest = await latestCommitForPath(owner, repo, path);
+      let shippedIn = null;
+      let shipChecks = 0;
+      if (latest) {
+        // Reuse per-line search via tagContains on latest commit
+        setStatus("Finding first tag containing latest path commit…");
+        const byLine = new Map();
+        for (const item of tags) {
+          const parts = item.version.parts;
+          const key =
+            parts.length <= 1 ? String(parts[0]) : parts.slice(0, -1).join(".");
+          if (!byLine.has(key)) byLine.set(key, []);
+          byLine.get(key).push(item);
+        }
+        const hits = [];
+        for (const [, line] of byLine) {
+          const newest = line[line.length - 1];
+          shipChecks += 1;
+          const newestHit = await tagContains(owner, repo, newest.tag, latest.sha);
+          if (!newestHit.contains) continue;
+          let lo = 0;
+          let hi = line.length - 1;
+          let firstIdx = line.length - 1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            shipChecks += 1;
+            const midHit = await tagContains(owner, repo, line[mid].tag, latest.sha);
+            if (midHit.contains) {
+              firstIdx = mid;
+              hi = mid - 1;
+            } else {
+              lo = mid + 1;
+            }
+          }
+          hits.push(line[firstIdx]);
+        }
+        hits.sort((a, b) => {
+          const { cmpVersion } = WIMC;
+          return cmpVersion(a.version, b.version);
+        });
+        shippedIn = hits[0] || null;
+      }
+
+      const treeUrl = `https://github.com/${owner}/${repo}/tree/HEAD/${path
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/")}`;
+
+      if (!first) {
+        showResultShell({
+          verdictClass: "missing",
+          label: "Not in any tag",
+          main: "Path not in version tags",
+          sub: `<code>${escapeHtml(path)}</code> exists on HEAD but not in the scanned tags (yet).`,
+          metaRows: [
+            ["Repo", `${escapeHtml(owner)}/${escapeHtml(repo)}`],
+            ["Path", `<a href="${treeUrl}" target="_blank" rel="noopener">${escapeHtml(path)}</a>`],
+            ["Tags scanned", String(tags.length)],
+            ["API checks", String(checks)],
+          ],
+        });
+        $("lines-card").hidden = true;
+      } else {
+        showResultShell({
+          verdictClass: "found",
+          label: "First appeared in",
+          main: first.tag,
+          sub: `<code>${escapeHtml(path)}</code> first exists in the tree at <a href="${tagUrl(
+            owner,
+            repo,
+            first.tag
+          )}" target="_blank" rel="noopener">${escapeHtml(first.tag)}</a>.`,
+          metaRows: [
+            ["Repo", `${escapeHtml(owner)}/${escapeHtml(repo)}`],
+            ["Path", `<a href="${treeUrl}" target="_blank" rel="noopener">${escapeHtml(path)}</a>`],
+            [
+              "Latest path commit",
+              latest
+                ? `<a href="${latest.html_url}" target="_blank" rel="noopener">${latest.sha.slice(0, 7)}</a> — ${escapeHtml(
+                    (latest.commit?.message || "").split("\n")[0]
+                  )}`
+                : "—",
+            ],
+            [
+              "That commit shipped",
+              shippedIn
+                ? `<a href="${tagUrl(owner, repo, shippedIn.tag)}" target="_blank" rel="noopener">${escapeHtml(
+                    shippedIn.tag
+                  )}</a>`
+                : "Not in any scanned tag yet",
+            ],
+            ["Release lines", String(firstPerLine.length)],
+            ["API checks", `${checks + shipChecks}`],
+          ],
+        });
+
+        if (firstPerLine.length > 1) {
+          $("lines-card").hidden = false;
+          $("lines-title").textContent = `First presence on ${firstPerLine.length} release lines`;
+          $("lines-list").innerHTML = firstPerLine
+            .map(
+              (row) =>
+                `<li><span>${escapeHtml(row.lineKey)}.x</span><a href="${tagUrl(
+                  owner,
+                  repo,
+                  row.first.tag
+                )}" target="_blank" rel="noopener">${escapeHtml(row.first.tag)}</a></li>`
+            )
+            .join("");
+        } else {
+          $("lines-card").hidden = true;
+        }
+      }
+      $("npm-card").hidden = true;
+    }
+
+    async function runNpmMode() {
+      const name = $("npmname").value.trim();
+      if (!name) throw new Error("Enter an npm package name.");
+
+      setStatus(`Fetching ${name} from npm…`);
+      const data = await fetchNpmPackage(name);
+      const versions = Object.keys(data.versions || {});
+      if (!versions.length) throw new Error("No versions published.");
+
+      // Prefer time map for ordering
+      const times = data.time || {};
+      const dated = versions
+        .map((v) => ({ version: v, time: times[v] || null }))
+        .filter((v) => v.version !== "created" && v.version !== "modified");
+      dated.sort((a, b) => {
+        const ta = a.time ? Date.parse(a.time) : 0;
+        const tb = b.time ? Date.parse(b.time) : 0;
+        return ta - tb;
+      });
+
+      const first = dated[0];
+      const latest = dated[dated.length - 1];
+      const latestDist = data["dist-tags"]?.latest;
+      const repoUrl =
+        data.repository?.url ||
+        data.versions?.[latestDist || latest.version]?.repository?.url ||
+        "";
+
+      showResultShell({
+        verdictClass: "found",
+        label: "First published",
+        main: first.version,
+        sub: `First: <strong>${escapeHtml(first.version)}</strong> (${formatDate(
+          first.time
+        )}) · Latest: <strong>${escapeHtml(
+          latestDist || latest.version
+        )}</strong> (${formatDate(times[latestDist] || latest.time)}) · <a href="https://www.npmjs.com/package/${name
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/")}" target="_blank" rel="noopener">npm page</a>`,
+        metaRows: [
+          ["Package", escapeHtml(data.name || name)],
+          ["Versions", String(dated.length)],
+          ["Description", escapeHtml((data.description || "—").slice(0, 120))],
+          [
+            "Repository",
+            repoUrl
+              ? escapeHtml(repoUrl.replace(/^git\+/, "").replace(/\.git$/, ""))
+              : "—",
+          ],
+        ],
+      });
+
+      $("lines-card").hidden = true;
+      $("npm-card").hidden = false;
+      $("npm-title").textContent = `${Math.min(dated.length, 40)} versions (oldest → newest, capped)`;
+      const slice = dated.length > 40 ? dated.slice(-40) : dated;
+      $("npm-list").innerHTML = slice
+        .map((v) => {
+          return `<li>
+            <a href="https://www.npmjs.com/package/${name.split("/").map(encodeURIComponent).join("/")}/v/${encodeURIComponent(
+              v.version
+            )}" target="_blank" rel="noopener">${escapeHtml(v.version)}</a>
+            <div class="commit-meta">${formatDate(v.time)}</div>
+          </li>`;
+        })
+        .join("");
+    }
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submit = $("submit");
+      submit.disabled = true;
+      $("result").hidden = true;
+      $("result").classList.remove("visible");
+
+      try {
+        if (selectedMode() === "npm") await runNpmMode();
+        else await runPathMode();
+        setStatus(`Done${rateNote()}`);
+      } catch (err) {
+        setStatus(err.message || String(err), true);
+        showResultShell({
+          verdictClass: "error-box",
+          label: "Could not look up",
+          main: "Lookup failed",
+          sub: escapeHtml(err.message || String(err)),
+          metaRows: [],
+        });
+        $("lines-card").hidden = true;
+        $("npm-card").hidden = true;
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

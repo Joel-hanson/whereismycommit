@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Strimzi Dependency Graph</title>
+  <script>
+    (function () {
+      var path = location.pathname;
+      var base;
+      if (/\.github\.io$/i.test(location.hostname)) {
+        var parts = path.split("/").filter(Boolean);
+        base = parts.length ? "/" + parts[0] + "/" : "/";
+      } else {
+        base = path.replace(/\/[^/]*$/, "/") || "/";
+      }
+      var el = document.createElement("base");
+      el.href = base;
+      document.head.insertBefore(el, document.head.firstChild);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/tool.css" />
+  <style>
+    .wrap.wide { width: min(52rem, calc(100% - 2rem)); }
+
+    .mode-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 560px) {
+      .mode-options { grid-template-columns: 1fr; }
+    }
+    .mode-option {
+      position: relative;
+      display: grid;
+      gap: 0.25rem;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      cursor: pointer;
+    }
+    .mode-option:has(input:checked) {
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 0 1px hsl(var(--primary));
+    }
+    .mode-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .mode-option strong { font-size: 0.875rem; font-weight: 500; }
+    .mode-option span {
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.4;
+    }
+
+    .hit-list { list-style: none; }
+    .hit-list li {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem 1rem;
+      align-items: start;
+      padding: 0.85rem 1.15rem;
+      border-bottom: 1px solid hsl(var(--border));
+      font-size: 0.85rem;
+    }
+    .hit-list li:last-child { border-bottom: none; }
+    .hit-list button {
+      appearance: none;
+      border: none;
+      background: none;
+      color: hsl(var(--foreground));
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      padding: 0;
+    }
+    .hit-list button:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .hit-meta {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.45;
+    }
+    .hit-via {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: hsl(var(--foreground) / 0.55);
+      white-space: nowrap;
+    }
+
+    .graph-panel {
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: hsl(var(--card));
+      overflow: hidden;
+    }
+    .graph-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: baseline;
+      padding: 0.85rem 1.15rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+    .graph-head strong { font-size: 0.875rem; font-weight: 500; }
+    .graph-head span {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: hsl(var(--muted-foreground));
+    }
+    .graph-scroll {
+      max-height: 520px;
+      overflow: auto;
+      padding: 1rem 1.15rem 1.25rem;
+    }
+    .tree {
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      line-height: 1.55;
+    }
+    .tree ul {
+      list-style: none;
+      margin-left: 1.1rem;
+      padding-left: 0.85rem;
+      border-left: 1px solid hsl(var(--border));
+    }
+    .tree li { margin: 0.15rem 0; }
+    .tree .kind {
+      display: inline-block;
+      min-width: 4.2rem;
+      color: hsl(var(--muted-foreground));
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tree .hl {
+      color: hsl(var(--success));
+      font-weight: 600;
+    }
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.65rem;
+    }
+    .chip {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.25rem;
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--muted));
+      color: hsl(var(--muted-foreground));
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap wide">
+    <header>
+      <div class="brand-row">
+        <p class="brand">
+          <span class="brand-mark" aria-hidden="true">g</span>
+          Strimzi Dependency Graph
+        </p>
+        <a class="sibling" href="./">All tools</a>
+      </div>
+      <h1>Which Strimzi release has this package?</h1>
+      <p class="lede">Search stored graphs (last ~2 years) for a Maven package version, or browse a release tree (image → plugin → deps).</p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <div>
+        <p class="label">Mode</p>
+        <div class="mode-options" role="radiogroup">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="search" checked />
+            <strong>Find package</strong>
+            <span>e.g. commons-beanutils, guava, cruise-control</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="browse" />
+            <strong>Browse release</strong>
+            <span>Pick a Strimzi tag and view its graph</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="search-fields">
+        <div class="row">
+          <div class="field">
+            <label class="label" for="pkg">Package name</label>
+            <input class="input" id="pkg" type="text" placeholder="commons-beanutils" spellcheck="false" required />
+          </div>
+          <div class="field">
+            <label class="label" for="ver">Version (optional)</label>
+            <input class="input" id="ver" type="text" placeholder="1.11.0" spellcheck="false" />
+          </div>
+        </div>
+      </div>
+
+      <div id="browse-fields" hidden>
+        <div class="field">
+          <label class="label" for="release">Strimzi release</label>
+          <select class="input" id="release"></select>
+        </div>
+      </div>
+
+      <button class="btn" type="submit" id="submit">Search</button>
+    </form>
+
+    <p class="status" id="status" aria-live="polite"></p>
+    <div class="result" id="result" hidden></div>
+
+    <hr class="separator" />
+    <footer>
+      Data from Strimzi Maven poms + Cruise Control POMs (not live image scans).
+      Regenerate with <code>python3 scripts/scan-strimzi.py</code>.
+      <a href="./">All tools</a>
+    </footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const escapeHtml = (s) =>
+      String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    let index = null;
+    const graphCache = new Map();
+
+    function selectedMode() {
+      return document.querySelector('input[name="mode"]:checked')?.value || "search";
+    }
+
+    function syncMode() {
+      const mode = selectedMode();
+      $("search-fields").hidden = mode !== "search";
+      $("browse-fields").hidden = mode !== "browse";
+      $("pkg").required = mode === "search";
+      $("submit").textContent = mode === "search" ? "Search" : "Show graph";
+    }
+
+    document.querySelectorAll('input[name="mode"]').forEach((el) => {
+      el.addEventListener("change", syncMode);
+    });
+    syncMode();
+
+    async function loadIndex() {
+      const res = await fetch("data/strimzi/index.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`Could not load data/strimzi/index.json (${res.status})`);
+      index = await res.json();
+      const sel = $("release");
+      sel.innerHTML = "";
+      for (const r of index.releases || []) {
+        const opt = document.createElement("option");
+        opt.value = r.release;
+        opt.textContent = `${r.release} · CC ${r.cruiseControl || "?"} · ${r.packageCount} pkgs`;
+        sel.appendChild(opt);
+      }
+      $("status").textContent = `Loaded ${index.releaseCount} Strimzi releases (window ${index.windowYears}y · generated ${index.generatedAt || "—"})`;
+    }
+
+    async function loadGraph(release) {
+      if (graphCache.has(release)) return graphCache.get(release);
+      const entry = (index.releases || []).find((r) => r.release === release);
+      if (!entry) throw new Error(`Unknown release ${release}`);
+      const res = await fetch(`data/strimzi/${entry.file}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Missing graph for ${release}`);
+      const graph = await res.json();
+      graphCache.set(release, graph);
+      return graph;
+    }
+
+    function packageMatches(pkg, name, version) {
+      const n = name.toLowerCase();
+      const hay = `${pkg.group || ""}:${pkg.name || ""}`.toLowerCase();
+      const nameHit =
+        pkg.name.toLowerCase() === n ||
+        hay.includes(n) ||
+        (pkg.purl || "").toLowerCase().includes(n);
+      if (!nameHit) return false;
+      if (!version) return true;
+      return String(pkg.version) === version;
+    }
+
+    function componentMatches(comp, name, version) {
+      const n = name.toLowerCase();
+      const hit = comp.name.toLowerCase() === n || comp.name.toLowerCase().includes(n);
+      if (!hit) return false;
+      if (!version) return true;
+      return String(comp.version) === version;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "—";
+      try {
+        return new Date(iso).toISOString().slice(0, 10);
+      } catch {
+        return iso;
+      }
+    }
+
+    function renderHits(hits, query) {
+      const result = $("result");
+      result.hidden = false;
+      result.classList.add("visible");
+      if (!hits.length) {
+        result.innerHTML = `
+          <div class="alert missing">
+            <p class="alert-label">Not found</p>
+            <p class="alert-main">${escapeHtml(query)}</p>
+            <p class="alert-sub">No matching package in the stored Strimzi graphs.</p>
+          </div>`;
+        return;
+      }
+      const rows = hits
+        .map((h) => {
+          const via = (h.via || []).join(", ") || "—";
+          return `<li>
+            <button type="button" data-release="${escapeHtml(h.release)}">${escapeHtml(h.release)}</button>
+            <div class="hit-meta">
+              ${escapeHtml(h.group)}:${escapeHtml(h.name)}@${escapeHtml(h.version)}
+              <br />published ${escapeHtml(formatDate(h.publishedAt))}
+            </div>
+            <div class="hit-via">via ${escapeHtml(via)}</div>
+          </li>`;
+        })
+        .join("");
+      result.innerHTML = `
+        <div class="alert found">
+          <p class="alert-label">Found in ${hits.length} release${hits.length === 1 ? "" : "s"}</p>
+          <p class="alert-main">${escapeHtml(query)}</p>
+          <p class="alert-sub">Click a release to open its dependency tree.</p>
+        </div>
+        <div class="list-card">
+          <p class="list-card-title">Matching releases</p>
+          <ul class="hit-list">${rows}</ul>
+        </div>
+        <div id="graph-slot"></div>`;
+      result.querySelectorAll("button[data-release]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          $("status").textContent = `Loading ${btn.dataset.release}…`;
+          try {
+            const graph = await loadGraph(btn.dataset.release);
+            renderGraph(graph, query);
+            $("status").textContent = "";
+          } catch (err) {
+            $("status").textContent = err.message || String(err);
+            $("status").classList.add("error");
+          }
+        });
+      });
+    }
+
+    function childrenOf(graph, parentId) {
+      return (graph.edges || [])
+        .filter(([from]) => from === parentId)
+        .map(([, to]) => to);
+    }
+
+    function nodeById(graph, id) {
+      return (graph.nodes || []).find((n) => n.id === id);
+    }
+
+    function renderTreeHtml(graph, nodeId, highlightName, depth = 0) {
+      const node = nodeById(graph, nodeId);
+      if (!node) return "";
+      const kids = childrenOf(graph, nodeId);
+      // Cap package fan-out under components for readability
+      let shown = kids;
+      let truncated = 0;
+      if (node.kind === "component" && kids.length > 24) {
+        shown = kids.slice(0, 24);
+        truncated = kids.length - 24;
+      }
+      const label = node.label || nodeId;
+      const isHl =
+        highlightName &&
+        (label.toLowerCase().includes(highlightName.toLowerCase()) ||
+          (node.id || "").toLowerCase().includes(highlightName.toLowerCase()));
+      const childHtml = shown
+        .map((cid) => renderTreeHtml(graph, cid, highlightName, depth + 1))
+        .join("");
+      const more = truncated
+        ? `<li><span class="kind">…</span> +${truncated} more packages</li>`
+        : "";
+      const inner =
+        childHtml || more
+          ? `<ul class="tree">${childHtml}${more}</ul>`
+          : "";
+      return `<li><span class="kind">${escapeHtml(node.kind || "")}</span> <span class="${isHl ? "hl" : ""}">${escapeHtml(label)}</span>${inner}</li>`;
+    }
+
+    function renderGraph(graph, highlightName) {
+      const slot = $("graph-slot") || $("result");
+      const releaseNode = `release:${graph.release}`;
+      const chips = (graph.components || [])
+        .map((c) => `<span class="chip">${escapeHtml(c.name)}@${escapeHtml(c.version)}</span>`)
+        .join("");
+      const images = (graph.images || [])
+        .map((img) => `${img.tag}${img.default ? " (default)" : ""}`)
+        .join(", ");
+      const html = `
+        <div class="graph-panel" style="margin-top:1rem">
+          <div class="graph-head">
+            <strong>Strimzi ${escapeHtml(graph.release)}</strong>
+            <span>${escapeHtml(formatDate(graph.publishedAt))} · ${graph.packages?.length || 0} packages</span>
+          </div>
+          <div class="graph-scroll">
+            <p class="hint" style="margin-bottom:0.75rem">Images: ${escapeHtml(images || "—")}</p>
+            <div class="chip-row">${chips}</div>
+            <ul class="tree" style="margin-top:1rem">${renderTreeHtml(graph, releaseNode, highlightName)}</ul>
+          </div>
+        </div>`;
+      if ($("graph-slot")) {
+        $("graph-slot").innerHTML = html;
+      } else {
+        $("result").hidden = false;
+        $("result").classList.add("visible");
+        $("result").innerHTML = html;
+      }
+    }
+
+    async function runSearch() {
+      const name = $("pkg").value.trim();
+      const version = $("ver").value.trim();
+      if (!name) throw new Error("Enter a package name.");
+      $("status").classList.remove("error");
+      $("status").textContent = "Scanning stored graphs…";
+
+      const hits = [];
+      for (const entry of index.releases || []) {
+        const graph = await loadGraph(entry.release);
+        for (const pkg of graph.packages || []) {
+          if (packageMatches(pkg, name, version || null)) {
+            hits.push({
+              release: entry.release,
+              publishedAt: entry.publishedAt,
+              group: pkg.group,
+              name: pkg.name,
+              version: pkg.version,
+              via: pkg.via,
+            });
+          }
+        }
+        for (const comp of graph.components || []) {
+          if (componentMatches(comp, name, version || null)) {
+            const already = hits.some(
+              (h) => h.release === entry.release && h.name === comp.name && h.version === comp.version
+            );
+            if (!already) {
+              hits.push({
+                release: entry.release,
+                publishedAt: entry.publishedAt,
+                group: comp.group || "",
+                name: comp.name,
+                version: comp.version,
+                via: ["component"],
+              });
+            }
+          }
+        }
+      }
+
+      const query = version ? `${name}@${version}` : name;
+      $("status").textContent = hits.length
+        ? `Done · ${hits.length} hit${hits.length === 1 ? "" : "s"}`
+        : "Done · no hits";
+      renderHits(hits, query);
+    }
+
+    async function runBrowse() {
+      const release = $("release").value;
+      if (!release) throw new Error("No releases loaded.");
+      $("status").classList.remove("error");
+      $("status").textContent = `Loading ${release}…`;
+      const graph = await loadGraph(release);
+      $("status").textContent = "";
+      $("result").hidden = false;
+      $("result").classList.add("visible");
+      $("result").innerHTML = `<div id="graph-slot"></div>`;
+      renderGraph(graph, null);
+    }
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        if (selectedMode() === "search") await runSearch();
+        else await runBrowse();
+      } catch (err) {
+        $("status").textContent = err.message || String(err);
+        $("status").classList.add("error");
+      }
+    });
+
+    loadIndex().catch((err) => {
+      $("status").textContent = err.message || String(err);
+      $("status").classList.add("error");
+    });
+  </script>
+</body>
+</html>
