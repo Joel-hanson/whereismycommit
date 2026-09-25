@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>What Changed Between</title>
+  <script>
+    (function () {
+      var path = location.pathname;
+      var base;
+      if (/\.github\.io$/i.test(location.hostname)) {
+        var parts = path.split("/").filter(Boolean);
+        base = parts.length ? "/" + parts[0] + "/" : "/";
+      } else {
+        base = path.replace(/\/[^/]*$/, "/") || "/";
+      }
+      var el = document.createElement("base");
+      el.href = base;
+      document.head.insertBefore(el, document.head.firstChild);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/tool.css" />
+</head>
+<body>
+  <div class="wrap wide">
+    <header>
+      <div class="brand-row">
+        <p class="brand">
+          <span class="brand-mark" aria-hidden="true">Δ</span>
+          What Changed Between
+        </p>
+        <a class="sibling" href="./">All tools</a>
+      </div>
+      <h1>List commits that landed between two tags</h1>
+      <p class="lede">Release notes helper: see what shipped from one version to the next, with PR hints when messages include them.</p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="label" for="repo">Repository</label>
+        <input class="input" id="repo" type="text" required placeholder="owner/repo" spellcheck="false" />
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="label" for="from">From tag</label>
+          <input class="input" id="from" type="text" required placeholder="3.8.0" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label class="label" for="to">To tag</label>
+          <input class="input" id="to" type="text" required placeholder="3.9.0" spellcheck="false" />
+        </div>
+      </div>
+      <label class="checkbox-row">
+        <input class="checkbox" type="checkbox" id="show-token" />
+        Use a GitHub token
+      </label>
+      <div class="field" id="token-field">
+        <label class="label" for="token">Personal access token</label>
+        <p class="hint">Tab-local only · sent only to api.github.com</p>
+        <input class="input" id="token" type="password" placeholder="ghp_…" spellcheck="false" />
+      </div>
+      <button class="btn" type="submit" id="submit">Compare</button>
+    </form>
+
+    <p class="status" id="status" aria-live="polite"></p>
+    <div class="result" id="result" hidden>
+      <div class="alert" id="verdict">
+        <p class="alert-label" id="verdict-label"></p>
+        <p class="alert-main" id="verdict-main"></p>
+        <p class="alert-sub" id="verdict-sub"></p>
+      </div>
+      <dl class="meta" id="meta"></dl>
+      <div class="list-card" id="list-card" hidden>
+        <p class="list-card-title" id="list-title">Commits</p>
+        <ul class="commit-list" id="commit-list"></ul>
+      </div>
+    </div>
+
+    <hr class="separator" />
+    <footer>
+      Uses GitHub <code>compare/from...to</code> (commits reachable from <em>to</em> but not <em>from</em>).
+      Large ranges may be truncated by the API (~250 commits).
+      <a href="./">All tools</a>
+    </footer>
+  </div>
+  <script src="assets/gh.js"></script>
+  <script>
+    const {
+      $, parseRepo, compare, setStatus, showResultShell, escapeHtml, rateNote,
+      extractPrNumber, formatDate,
+    } = WIMC;
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submit = $("submit");
+      submit.disabled = true;
+      $("result").hidden = true;
+      $("result").classList.remove("visible");
+      $("list-card").hidden = true;
+
+      try {
+        const { owner, repo } = parseRepo($("repo").value);
+        const from = $("from").value.trim();
+        const to = $("to").value.trim();
+        if (!from || !to) throw new Error("Enter both tags.");
+
+        setStatus(`Comparing ${from}…${to}`);
+        const data = await compare(owner, repo, from, to);
+        const commits = data.commits || [];
+        const compareUrl = data.html_url ||
+          `https://github.com/${owner}/${repo}/compare/${encodeURIComponent(from)}...${encodeURIComponent(to)}`;
+
+        const prs = new Set();
+        for (const c of commits) {
+          const n = extractPrNumber(c.commit?.message || "");
+          if (n) prs.add(n);
+        }
+
+        showResultShell({
+          verdictClass: commits.length ? "found" : "missing",
+          label: "Range",
+          main: `${from} → ${to}`,
+          sub: `${commits.length} commit${commits.length === 1 ? "" : "s"} on <a href="${compareUrl}" target="_blank" rel="noopener">GitHub compare</a>${
+            data.ahead_by != null ? ` · ahead ${data.ahead_by}` : ""
+          }${data.behind_by ? ` · behind ${data.behind_by}` : ""}`,
+          metaRows: [
+            ["Repo", `${escapeHtml(owner)}/${escapeHtml(repo)}`],
+            ["Status", escapeHtml(data.status || "—")],
+            ["Commits listed", String(commits.length)],
+            ["PRs detected", String(prs.size)],
+            ["Files changed", String(data.files?.length ?? "—")],
+          ],
+        });
+
+        const list = $("commit-list");
+        if (!commits.length) {
+          $("list-card").hidden = true;
+        } else {
+          $("list-card").hidden = false;
+          $("list-title").textContent = `${commits.length} commits in range`;
+          // Newest first (API is chronological oldest→newest)
+          const ordered = commits.slice().reverse();
+          list.innerHTML = ordered
+            .map((c) => {
+              const msg = (c.commit?.message || "").split("\n")[0];
+              const sha = c.sha.slice(0, 7);
+              const pr = extractPrNumber(c.commit?.message || "");
+              const prLink = pr
+                ? ` · <a href="https://github.com/${owner}/${repo}/pull/${pr}" target="_blank" rel="noopener">#${pr}</a>`
+                : "";
+              const date = formatDate(c.commit?.author?.date || c.commit?.committer?.date);
+              return `<li>
+                <a href="${c.html_url}" target="_blank" rel="noopener">${escapeHtml(msg)}</a>
+                <div class="commit-meta">${sha}${prLink} · ${date}</div>
+              </li>`;
+            })
+            .join("");
+        }
+        setStatus(`Done${rateNote()}`);
+      } catch (err) {
+        setStatus(err.message || String(err), true);
+        showResultShell({
+          verdictClass: "error-box",
+          label: "Could not compare",
+          main: "Lookup failed",
+          sub: escapeHtml(err.message || String(err)),
+          metaRows: [],
+        });
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
