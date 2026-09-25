@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Not found</title>
+  <script>
+    (function () {
+      var path = location.pathname;
+      var base = "/";
+      if (/\.github\.io$/i.test(location.hostname)) {
+        var parts = path.split("/").filter(Boolean);
+        if (parts.length) base = "/" + parts[0] + "/";
+      } else {
+        base = path.replace(/\/[^/]*$/, "/") || "/";
+      }
+      location.replace(base);
+    })();
+  </script>
+</head>
+<body>
+  <p><a href="./">Back to Where Is My Commit</a></p>
+</body>
+</html>

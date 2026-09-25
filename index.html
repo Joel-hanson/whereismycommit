@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Where Is My Commit</title>
+  <script>
+    /* GitHub Pages project sites live under /repo-name/ — set <base> so relative links work. */
+    (function () {
+      var path = location.pathname;
+      var base;
+      if (/\.github\.io$/i.test(location.hostname)) {
+        var parts = path.split("/").filter(Boolean);
+        base = parts.length ? "/" + parts[0] + "/" : "/";
+      } else {
+        base = path.replace(/\/[^/]*$/, "/") || "/";
+      }
+      var el = document.createElement("base");
+      el.href = base;
+      document.head.insertBefore(el, document.head.firstChild);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* shadcn/ui design tokens (zinc / new-york) */
+    :root {
+      --radius: 0.5rem;
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 240 10% 3.9%;
+      --primary: 240 5.9% 10%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 240 4.8% 95.9%;
+      --secondary-foreground: 240 5.9% 10%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --accent: 240 4.8% 95.9%;
+      --accent-foreground: 240 5.9% 10%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 5.9% 90%;
+      --input: 240 5.9% 90%;
+      --ring: 240 5.9% 10%;
+      --success: 142 76% 36%;
+      --success-foreground: 0 0% 98%;
+      --warning: 38 92% 50%;
+      --warning-foreground: 240 10% 3.9%;
+      --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "Geist Mono", ui-monospace, monospace;
+    }
+
+    .dark {
+      --background: 240 10% 3.9%;
+      --foreground: 0 0% 98%;
+      --card: 240 10% 3.9%;
+      --card-foreground: 0 0% 98%;
+      --popover: 240 10% 3.9%;
+      --popover-foreground: 0 0% 98%;
+      --primary: 0 0% 98%;
+      --primary-foreground: 240 5.9% 10%;
+      --secondary: 240 3.7% 15.9%;
+      --secondary-foreground: 0 0% 98%;
+      --muted: 240 3.7% 15.9%;
+      --muted-foreground: 240 5% 64.9%;
+      --accent: 240 3.7% 15.9%;
+      --accent-foreground: 0 0% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 0 0% 98%;
+      --border: 240 3.7% 15.9%;
+      --input: 240 3.7% 15.9%;
+      --ring: 240 4.9% 83.9%;
+      --success: 142 71% 45%;
+      --success-foreground: 0 0% 98%;
+      --warning: 38 92% 50%;
+      --warning-foreground: 240 10% 3.9%;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: var(--font-sans);
+      color: hsl(var(--foreground));
+      background: hsl(var(--background));
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .wrap {
+      width: min(36rem, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 3rem 0 4rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      animation: rise 0.4s ease both;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+      margin-bottom: 1.25rem;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .brand-row .brand { margin-bottom: 0; }
+
+    .sibling {
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+      text-decoration: none;
+    }
+
+    .sibling:hover {
+      color: hsl(var(--foreground));
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    h1 {
+      font-size: clamp(1.5rem, 3.5vw, 1.875rem);
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+      margin-bottom: 0.5rem;
+      tracking: tight;
+    }
+
+    .lede {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.9375rem;
+      max-width: 40ch;
+      line-height: 1.6;
+    }
+
+    /* Form */
+    form {
+      display: grid;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+      animation: rise 0.4s 0.05s ease both;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1;
+      color: hsl(var(--foreground));
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.4;
+    }
+
+    .input {
+      display: flex;
+      height: 2.5rem;
+      width: 100%;
+      border-radius: calc(var(--radius) - 2px);
+      border: 1px solid hsl(var(--input));
+      background: transparent;
+      padding: 0.5rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      color: hsl(var(--foreground));
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input::placeholder {
+      color: hsl(var(--muted-foreground));
+      opacity: 0.7;
+    }
+
+    .input:focus-visible {
+      border-color: hsl(var(--ring));
+      box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.4);
+    }
+
+    /* Radio group (shadcn-style cards) */
+    .mode {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .mode-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 520px) {
+      .mode-options { grid-template-columns: 1fr; }
+    }
+
+    .mode-option {
+      position: relative;
+      display: grid;
+      gap: 0.25rem;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+
+    .mode-option:hover {
+      background: hsl(var(--accent));
+    }
+
+    .mode-option:has(input:checked) {
+      border-color: hsl(var(--primary));
+      box-shadow: 0 0 0 1px hsl(var(--primary));
+    }
+
+    .mode-option:has(input:focus-visible) {
+      box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.4);
+    }
+
+    .mode-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mode-option strong {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: hsl(var(--foreground));
+    }
+
+    .mode-option span {
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      font-weight: 400;
+      line-height: 1.4;
+    }
+
+    /* Checkbox */
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: hsl(var(--muted-foreground));
+      cursor: pointer;
+      user-select: none;
+      width: fit-content;
+      line-height: 1.4;
+    }
+
+    .checkbox {
+      appearance: none;
+      width: 1rem;
+      height: 1rem;
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+      border-radius: 0.25rem;
+      border: 1px solid hsl(var(--primary));
+      background: transparent;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.1s, border-color 0.1s;
+    }
+
+    .checkbox:checked {
+      background: hsl(var(--primary));
+      border-color: hsl(var(--primary));
+    }
+
+    .checkbox:checked::after {
+      content: "";
+      width: 0.35rem;
+      height: 0.55rem;
+      border: solid hsl(var(--primary-foreground));
+      border-width: 0 1.5px 1.5px 0;
+      transform: rotate(45deg) translateY(-1px);
+    }
+
+    .checkbox:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.4);
+    }
+
+    #token-field { display: none; }
+    #token-field.visible { display: grid; }
+
+    /* Button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      height: 2.5rem;
+      padding: 0.5rem 1rem;
+      margin-top: 0.25rem;
+      border-radius: calc(var(--radius) - 2px);
+      border: none;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      cursor: pointer;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .btn:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.4);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    /* Status */
+    .status {
+      min-height: 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 1rem;
+      animation: rise 0.3s ease both;
+    }
+
+    .status.error { color: hsl(var(--destructive)); }
+
+    /* Results */
+    .result {
+      display: none;
+      animation: rise 0.35s ease both;
+    }
+
+    .result.visible { display: grid; gap: 1rem; }
+
+    /* Alert / Verdict (shadcn Alert pattern) */
+    .alert {
+      position: relative;
+      width: 100%;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      padding: 1rem;
+      background: hsl(var(--card));
+    }
+
+    .alert.found {
+      border-color: hsl(var(--success) / 0.4);
+      background: hsl(var(--success) / 0.08);
+    }
+
+    .alert.missing {
+      border-color: hsl(var(--warning) / 0.4);
+      background: hsl(var(--warning) / 0.08);
+    }
+
+    .alert.error-box {
+      border-color: hsl(var(--destructive) / 0.5);
+      background: hsl(var(--destructive) / 0.1);
+    }
+
+    .alert-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .alert.found .alert-label { color: hsl(var(--success)); }
+    .alert.missing .alert-label { color: hsl(var(--warning)); }
+    .alert.error-box .alert-label { color: hsl(0 72% 65%); }
+
+    .alert-main {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-family: var(--font-mono);
+      line-height: 1.3;
+    }
+
+    .alert-sub {
+      margin-top: 0.35rem;
+      color: hsl(var(--muted-foreground));
+      font-size: 0.875rem;
+    }
+
+    .alert-sub a {
+      color: hsl(var(--foreground));
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+
+    .alert-sub a:hover { opacity: 0.8; }
+
+    /* Card */
+    .card {
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      color: hsl(var(--card-foreground));
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+
+    .card[hidden] { display: none; }
+
+    .card-header {
+      padding: 1rem 1.25rem 0.5rem;
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: hsl(var(--muted-foreground));
+      margin-bottom: 0.35rem;
+    }
+
+    .card-heading {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .card-heading a {
+      color: hsl(var(--foreground));
+      text-decoration: none;
+    }
+
+    .card-heading a:hover {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .card-content {
+      padding: 0.5rem 1.25rem 1rem;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.85rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: hsl(var(--muted-foreground));
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 9999px;
+      border: 1px solid hsl(var(--border));
+      padding: 0.125rem 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: hsl(var(--secondary));
+      color: hsl(var(--secondary-foreground));
+    }
+
+    .pr-list {
+      list-style: none;
+      margin-top: 0.75rem;
+      border-top: 1px solid hsl(var(--border));
+      padding-top: 0.65rem;
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    .pr-list li {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .pr-list a {
+      color: hsl(var(--foreground));
+      text-decoration: none;
+    }
+
+    .pr-list a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+    /* Meta dl as card */
+    .meta {
+      display: grid;
+      gap: 0.65rem;
+      padding: 1rem 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--card));
+      font-size: 0.875rem;
+    }
+
+    .meta:empty { display: none; }
+
+    .meta-row {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.5rem;
+      align-items: baseline;
+    }
+
+    .meta-row dt {
+      color: hsl(var(--muted-foreground));
+      font-size: 0.8rem;
+    }
+
+    .meta-row dd {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      word-break: break-all;
+    }
+
+    .meta-row dd a {
+      color: hsl(var(--foreground));
+      text-decoration: none;
+    }
+
+    .meta-row dd a:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    /* Accordion / Details */
+    details.accordion {
+      border: 1px solid hsl(var(--border));
+      border-radius: var(--radius);
+      background: hsl(var(--card));
+      overflow: hidden;
+    }
+
+    details.accordion[hidden] { display: none; }
+
+    summary {
+      padding: 0.875rem 1.25rem;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.875rem;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.15s;
+    }
+
+    summary:hover { background: hsl(var(--muted) / 0.5); }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: "";
+      width: 0.5rem;
+      height: 0.5rem;
+      border-right: 1.5px solid hsl(var(--muted-foreground));
+      border-bottom: 1.5px solid hsl(var(--muted-foreground));
+      transform: rotate(45deg);
+      transition: transform 0.15s;
+      margin-top: -0.2rem;
+    }
+
+    details[open] summary::after {
+      transform: rotate(-135deg);
+      margin-top: 0.15rem;
+    }
+
+    .tag-list {
+      list-style: none;
+      border-top: 1px solid hsl(var(--border));
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .tag-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      border-bottom: 1px solid hsl(var(--border));
+    }
+
+    .tag-list li:last-child { border-bottom: none; }
+
+    .tag-list a {
+      color: hsl(var(--foreground));
+      text-decoration: none;
+    }
+
+    .tag-list a:hover {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .tag-date {
+      color: hsl(var(--muted-foreground));
+      white-space: nowrap;
+    }
+
+    /* Separator */
+    .separator {
+      height: 1px;
+      background: hsl(var(--border));
+      margin: 2rem 0;
+      border: none;
+    }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: hsl(var(--muted-foreground));
+      line-height: 1.6;
+      animation: rise 0.4s 0.1s ease both;
+    }
+
+    footer code {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      background: hsl(var(--muted));
+      color: hsl(var(--foreground));
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.25rem;
+      border: 1px solid hsl(var(--border));
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand-row">
+        <p class="brand">
+          <span class="brand-mark" aria-hidden="true">W</span>
+          Where Is My Commit
+        </p>
+        <a class="sibling" href="pr.html">PR lookup →</a>
+      </div>
+      <h1>Find which release first shipped your commit</h1>
+      <p class="lede">Paste a GitHub repo and commit SHA. Track it directly, or via the PR that merged it (works with squash merges).</p>
+    </header>
+
+    <form id="form" autocomplete="off">
+      <div class="field">
+        <label class="label" for="repo">Repository</label>
+        <input class="input" id="repo" name="repo" type="text" required
+          placeholder="owner/repo or https://github.com/owner/repo"
+          spellcheck="false" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="commit">Commit</label>
+        <input class="input" id="commit" name="commit" type="text" required
+          placeholder="full or short SHA"
+          spellcheck="false" />
+      </div>
+
+      <div class="mode">
+        <p class="label">Lookup mode</p>
+        <div class="mode-options" role="radiogroup" aria-label="Lookup mode">
+          <label class="mode-option">
+            <input type="radio" name="mode" value="direct" />
+            <strong>Direct SHA</strong>
+            <span>Check whether this exact commit is in a release tag</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="mode" value="pr" checked />
+            <strong>Via PR</strong>
+            <span>Find the PR that contains this commit, then use its merge/squash SHA</span>
+          </label>
+        </div>
+      </div>
+
+      <label class="checkbox-row">
+        <input class="checkbox" type="checkbox" id="include-prerelease" />
+        Include pre-release tags (e.g. 3.9.0-rc1)
+      </label>
+
+      <label class="checkbox-row">
+        <input class="checkbox" type="checkbox" id="show-token" />
+        Use a GitHub token (private repos / higher rate limits)
+      </label>
+
+      <div class="field" id="token-field">
+        <label class="label" for="token">Personal access token</label>
+        <p class="hint">Stored only in this browser tab — never sent anywhere except api.github.com</p>
+        <input class="input" id="token" name="token" type="password" placeholder="ghp_…" spellcheck="false" />
+      </div>
+
+      <button class="btn" type="submit" id="submit">Find release</button>
+    </form>
+
+    <p class="status" id="status" aria-live="polite"></p>
+
+    <div class="result" id="result" hidden>
+      <div class="alert" id="verdict">
+        <p class="alert-label" id="verdict-label"></p>
+        <p class="alert-main" id="verdict-main"></p>
+        <p class="alert-sub" id="verdict-sub"></p>
+      </div>
+
+      <div class="card" id="pr-card" hidden>
+        <div class="card-header">
+          <p class="card-title">Pull request</p>
+          <p class="card-heading" id="pr-title"></p>
+        </div>
+        <div class="card-content">
+          <div class="card-meta" id="pr-meta"></div>
+          <ul class="pr-list" id="pr-list" hidden></ul>
+        </div>
+      </div>
+
+      <dl class="meta" id="meta"></dl>
+
+      <details class="accordion" id="all-tags-details">
+        <summary>
+          <span id="all-tags-summary">All releases containing this commit</span>
+        </summary>
+        <ul class="tag-list" id="all-tags"></ul>
+      </details>
+    </div>
+
+    <hr class="separator" />
+
+    <footer>
+      Uses the public GitHub API. Only checks releases/tags at or after the commit
+      (or PR merge) time, plus a 1-day skew. Prefers GitHub Releases; otherwise git tags.
+      <strong>Via PR</strong> resolves squash/rebase merges. A token helps on large repos.
+      Built for GitHub Pages project sites (<code>/&lt;repo&gt;/</code>).
+    </footer>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    $("show-token").addEventListener("change", (e) => {
+      $("token-field").classList.toggle("visible", e.target.checked);
+    });
+
+    function parseRepo(raw) {
+      const cleaned = raw.trim().replace(/\.git$/, "");
+      const m = cleaned.match(
+        /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/\s]+)\/([^/\s#?]+)/i
+      );
+      if (m) return { owner: m[1], repo: m[2] };
+      const parts = cleaned.split("/").filter(Boolean);
+      if (parts.length === 2) return { owner: parts[0], repo: parts[1] };
+      throw new Error("Repo must look like owner/repo or a GitHub URL.");
+    }
+
+    function selectedMode() {
+      return document.querySelector('input[name="mode"]:checked')?.value || "pr";
+    }
+
+    function headers() {
+      const h = {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+      const token = $("token").value.trim();
+      if (token) h.Authorization = `Bearer ${token}`;
+      return h;
+    }
+
+    async function gh(path) {
+      const res = await fetch(`https://api.github.com${path}`, { headers: headers() });
+      const remaining = res.headers.get("X-RateLimit-Remaining");
+      if (remaining !== null) gh.lastRemaining = remaining;
+      if (res.status === 404) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Not found (404). Check the repo, commit, or token.");
+      }
+      if (res.status === 403 || res.status === 429) {
+        throw new Error("GitHub rate limit hit. Add a personal access token and try again.");
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || `GitHub API error (${res.status})`);
+      }
+      return res;
+    }
+
+    function rateNote() {
+      return gh.lastRemaining != null
+        ? ` · ${gh.lastRemaining} API calls left this hour`
+        : "";
+    }
+
+    async function resolveCommit(owner, repo, sha) {
+      const res = await gh(`/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}`);
+      return res.json();
+    }
+
+    async function fetchPullsForCommit(owner, repo, sha) {
+      const res = await gh(
+        `/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}/pulls`
+      );
+      return res.json();
+    }
+
+    async function fetchPull(owner, repo, number) {
+      const res = await gh(`/repos/${owner}/${repo}/pulls/${number}`);
+      return res.json();
+    }
+
+    function pickPrimaryPull(pulls) {
+      const merged = pulls
+        .filter((p) => p.merged_at)
+        .sort((a, b) => Date.parse(b.merged_at) - Date.parse(a.merged_at));
+      if (merged.length) return merged[0];
+      const open = pulls.filter((p) => p.state === "open");
+      if (open.length) return open[0];
+      return pulls[0] || null;
+    }
+
+    /** Parse tags like 3.9.0, 0.10.0.1, 4.0.0-rc1 */
+    function parseVersion(tag) {
+      const cleaned = String(tag).replace(/^v/i, "");
+      const m = cleaned.match(/^(\d+(?:\.\d+)*)(?:-rc(\d+))?$/i);
+      if (!m) return null;
+      return {
+        parts: m[1].split(".").map(Number),
+        rc: m[2] != null ? Number(m[2]) : null,
+        tag,
+      };
+    }
+
+    function cmpVersion(a, b) {
+      const len = Math.max(a.parts.length, b.parts.length);
+      for (let i = 0; i < len; i++) {
+        const d = (a.parts[i] || 0) - (b.parts[i] || 0);
+        if (d) return d;
+      }
+      if (a.rc == null && b.rc != null) return 1;
+      if (a.rc != null && b.rc == null) return -1;
+      return (a.rc || 0) - (b.rc || 0);
+    }
+
+    /** Release line key: all but last numeric segment (3.8.1 → "3.8"). */
+    function versionLineKey(v) {
+      if (v.parts.length <= 1) return String(v.parts[0]);
+      return v.parts.slice(0, -1).join(".");
+    }
+
+    /** 1-day skew so clock / timezone quirks don't drop a valid tag. */
+    const DATE_SKEW_MS = 24 * 60 * 60 * 1000;
+
+    function commitTimestamp(commit) {
+      const iso =
+        commit?.commit?.committer?.date ||
+        commit?.commit?.author?.date ||
+        null;
+      return iso ? Date.parse(iso) : null;
+    }
+
+    async function ghGraphql(query, variables) {
+      const res = await fetch("https://api.github.com/graphql", {
+        method: "POST",
+        headers: {
+          ...headers(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+      const remaining = res.headers.get("X-RateLimit-Remaining");
+      if (remaining !== null) gh.lastRemaining = remaining;
+      if (res.status === 403 || res.status === 429) {
+        throw new Error("GitHub rate limit hit. Add a personal access token and try again.");
+      }
+      if (!res.ok) {
+        throw new Error(`GitHub GraphQL error (${res.status})`);
+      }
+      const body = await res.json();
+      if (body.errors?.length) {
+        throw new Error(body.errors[0].message || "GitHub GraphQL error");
+      }
+      return body.data;
+    }
+
+    function dateFromGraphqlTagTarget(target) {
+      if (!target) return null;
+      if (target.__typename === "Commit") return target.committedDate || null;
+      if (target.__typename === "Tag") {
+        return target.tagger?.date || target.target?.committedDate || null;
+      }
+      return null;
+    }
+
+    async function fetchGitHubReleases(owner, repo, sinceMs) {
+      const releases = [];
+      const cutoff = sinceMs != null ? sinceMs - DATE_SKEW_MS : null;
+      let page = 1;
+      let trimmedOlder = false;
+
+      while (page <= 20) {
+        const res = await gh(
+          `/repos/${owner}/${repo}/releases?per_page=100&page=${page}`
+        );
+        const batch = await res.json();
+        if (!batch.length) break;
+
+        // API returns newest first — stop once we pass the commit date.
+        let hitOlder = false;
+        for (const r of batch) {
+          if (r.draft || !r.tag_name) continue;
+          const publishedAt = r.published_at || r.created_at || null;
+          const t = publishedAt ? Date.parse(publishedAt) : null;
+          if (cutoff != null && t != null && t < cutoff) {
+            hitOlder = true;
+            trimmedOlder = true;
+            break;
+          }
+          const ver = parseVersion(r.tag_name);
+          releases.push({
+            tag: r.tag_name,
+            name: r.name || r.tag_name,
+            publishedAt,
+            prerelease: !!r.prerelease || (ver ? ver.rc != null : false),
+            url: r.html_url,
+            version: ver,
+            source: "release",
+          });
+        }
+        if (hitOlder || batch.length < 100) break;
+        page += 1;
+      }
+      return { releases, trimmedOlder };
+    }
+
+    async function fetchVersionTagsGraphql(owner, repo, includePrerelease, sinceMs) {
+      const tags = [];
+      const cutoff = sinceMs != null ? sinceMs - DATE_SKEW_MS : null;
+      let cursor = null;
+      let trimmedOlder = false;
+      let pages = 0;
+
+      const query = `
+        query ($owner: String!, $repo: String!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            refs(
+              refPrefix: "refs/tags/"
+              first: 100
+              after: $cursor
+              orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
+            ) {
+              pageInfo { hasNextPage endCursor }
+              nodes {
+                name
+                target {
+                  __typename
+                  ... on Commit { committedDate }
+                  ... on Tag {
+                    tagger { date }
+                    target { ... on Commit { committedDate } }
+                  }
+                }
+              }
+            }
+          }
+        }`;
+
+      while (pages < 40) {
+        pages += 1;
+        const data = await ghGraphql(query, { owner, repo, cursor });
+        const conn = data?.repository?.refs;
+        if (!conn) break;
+
+        let hitOlder = false;
+        for (const node of conn.nodes) {
+          const publishedAt = dateFromGraphqlTagTarget(node.target);
+          const t = publishedAt ? Date.parse(publishedAt) : null;
+          if (cutoff != null && t != null && t < cutoff) {
+            hitOlder = true;
+            trimmedOlder = true;
+            break;
+          }
+
+          const ver = parseVersion(node.name);
+          if (!ver) continue;
+          if (!includePrerelease && ver.rc != null) continue;
+
+          tags.push({
+            tag: node.name,
+            name: node.name,
+            publishedAt,
+            prerelease: ver.rc != null,
+            url: `https://github.com/${owner}/${repo}/releases/tag/${encodeURIComponent(node.name)}`,
+            version: ver,
+            source: "tag",
+          });
+        }
+
+        if (hitOlder || !conn.pageInfo.hasNextPage) break;
+        cursor = conn.pageInfo.endCursor;
+      }
+
+      return { tags, trimmedOlder };
+    }
+
+    /** REST fallback when GraphQL is unavailable — no dates, so no date filter. */
+    async function fetchVersionTagsRest(owner, repo, includePrerelease) {
+      const res = await gh(`/repos/${owner}/${repo}/git/matching-refs/tags`);
+      const refs = await res.json();
+      const tags = [];
+      for (const ref of refs) {
+        const tag = ref.ref.replace(/^refs\/tags\//, "");
+        const ver = parseVersion(tag);
+        if (!ver) continue;
+        if (!includePrerelease && ver.rc != null) continue;
+        tags.push({
+          tag,
+          name: tag,
+          publishedAt: null,
+          prerelease: ver.rc != null,
+          url: `https://github.com/${owner}/${repo}/releases/tag/${encodeURIComponent(tag)}`,
+          version: ver,
+          source: "tag",
+        });
+      }
+      return { tags, trimmedOlder: false };
+    }
+
+    /**
+     * Prefer GitHub Releases when present; otherwise version git tags.
+     * Only keeps items at/after `sinceMs` (commit / merge time).
+     */
+    async function fetchReleaseCandidates(owner, repo, includePrerelease, sinceMs) {
+      const { releases, trimmedOlder: trimmedReleases } = await fetchGitHubReleases(
+        owner,
+        repo,
+        sinceMs
+      );
+      if (releases.length) {
+        const filtered = includePrerelease
+          ? releases
+          : releases.filter((r) => !r.prerelease);
+        return {
+          items: filtered,
+          source: "GitHub Releases",
+          trimmedOlder: trimmedReleases,
+          dateFiltered: sinceMs != null,
+        };
+      }
+
+      try {
+        setStatus("Loading git tags (with dates)…");
+        const { tags, trimmedOlder } = await fetchVersionTagsGraphql(
+          owner,
+          repo,
+          includePrerelease,
+          sinceMs
+        );
+        return {
+          items: tags,
+          source: "git tags",
+          trimmedOlder,
+          dateFiltered: sinceMs != null,
+        };
+      } catch (err) {
+        setStatus("GraphQL unavailable — loading all version tags…");
+        const { tags, trimmedOlder } = await fetchVersionTagsRest(
+          owner,
+          repo,
+          includePrerelease
+        );
+        return {
+          items: tags,
+          source: "git tags (no date filter)",
+          trimmedOlder,
+          dateFiltered: false,
+        };
+      }
+    }
+
+    async function tagContains(owner, repo, tag, sha) {
+      const res = await gh(
+        `/repos/${owner}/${repo}/compare/${encodeURIComponent(sha)}...${encodeURIComponent(tag)}`
+      );
+      const data = await res.json();
+      return (
+        data.status === "identical" ||
+        (data.status === "ahead" && data.behind_by === 0)
+      );
+    }
+
+    /**
+     * Find tags containing `sha`. Searches each major.minor line separately
+     * (Kafka-style branching), then picks the lowest semver overall.
+     */
+    async function findContaining(owner, repo, items, sha, onProgress) {
+      const versioned = items
+        .filter((r) => r.version)
+        .slice()
+        .sort((a, b) => cmpVersion(a.version, b.version));
+
+      // Non-semver tags (rare when using Releases with odd names): check linearly at end
+      const unversioned = items.filter((r) => !r.version);
+
+      const byLine = new Map();
+      for (const item of versioned) {
+        const key = versionLineKey(item.version);
+        if (!byLine.has(key)) byLine.set(key, []);
+        byLine.get(key).push(item);
+      }
+
+      let checks = 0;
+      const firstPerLine = [];
+
+      for (const [, line] of byLine) {
+        // Newest on the line first — skip the whole line if it doesn't contain
+        const newest = line[line.length - 1];
+        checks += 1;
+        onProgress?.(checks, newest.tag);
+        if (!(await tagContains(owner, repo, newest.tag, sha))) continue;
+
+        let lo = 0;
+        let hi = line.length - 1;
+        let firstIdx = line.length - 1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          checks += 1;
+          onProgress?.(checks, line[mid].tag);
+          if (await tagContains(owner, repo, line[mid].tag, sha)) {
+            firstIdx = mid;
+            hi = mid - 1;
+          } else {
+            lo = mid + 1;
+          }
+        }
+        firstPerLine.push({ first: line[firstIdx], rest: line.slice(firstIdx) });
+      }
+
+      for (const item of unversioned) {
+        checks += 1;
+        onProgress?.(checks, item.tag);
+        if (await tagContains(owner, repo, item.tag, sha)) {
+          firstPerLine.push({ first: item, rest: [item] });
+        }
+      }
+
+      if (!firstPerLine.length) {
+        return { first: null, containing: [], checks };
+      }
+
+      firstPerLine.sort((a, b) => {
+        if (a.first.version && b.first.version) {
+          return cmpVersion(a.first.version, b.first.version);
+        }
+        return String(a.first.tag).localeCompare(String(b.first.tag));
+      });
+
+      const seen = new Set();
+      const containing = [];
+      for (const { rest } of firstPerLine) {
+        for (const t of rest) {
+          if (seen.has(t.tag)) continue;
+          seen.add(t.tag);
+          containing.push(t);
+        }
+      }
+      containing.sort((a, b) => {
+        if (a.version && b.version) return cmpVersion(a.version, b.version);
+        return String(a.tag).localeCompare(String(b.tag));
+      });
+
+      return { first: firstPerLine[0].first, containing, checks };
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "—";
+      try {
+        return new Date(iso).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return iso;
+      }
+    }
+
+    function formatDateTime(iso) {
+      if (!iso) return "—";
+      try {
+        return new Date(iso).toLocaleString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      } catch {
+        return iso;
+      }
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = $("status");
+      el.textContent = msg;
+      el.classList.toggle("error", isError);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderPrCard(primary, allPulls) {
+      const card = $("pr-card");
+      if (!primary) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+
+      const state = primary.merged_at
+        ? "merged"
+        : primary.state === "open"
+          ? "open"
+          : "closed";
+
+      $("pr-title").innerHTML =
+        `<a href="${primary.html_url}" target="_blank" rel="noopener">#${primary.number}: ${escapeHtml(
+          primary.title
+        )}</a>`;
+
+      const bits = [
+        `<span class="badge">${state}</span>`,
+        primary.merged_at
+          ? `<span>merged ${formatDateTime(primary.merged_at)}</span>`
+          : null,
+        primary.user?.login ? `<span>by ${escapeHtml(primary.user.login)}</span>` : null,
+        primary.base?.ref ? `<span>into ${escapeHtml(primary.base.ref)}</span>` : null,
+      ].filter(Boolean);
+      $("pr-meta").innerHTML = bits.join("");
+
+      const list = $("pr-list");
+      const others = (allPulls || []).filter((p) => p.number !== primary.number);
+      if (!others.length) {
+        list.hidden = true;
+        list.innerHTML = "";
+      } else {
+        list.hidden = false;
+        list.innerHTML = others
+          .map((p) => {
+            const st = p.merged_at ? "merged" : p.state;
+            return `<li><a href="${p.html_url}" target="_blank" rel="noopener">#${p.number} ${escapeHtml(
+              p.title
+            )}</a><span>${st}</span></li>`;
+          })
+          .join("");
+      }
+    }
+
+    function showResult({
+      verdictClass,
+      label,
+      main,
+      sub,
+      metaRows,
+      containing,
+      pr,
+      pulls,
+    }) {
+      const result = $("result");
+      result.hidden = false;
+      result.classList.add("visible");
+
+      const verdict = $("verdict");
+      verdict.className = `alert ${verdictClass}`;
+      $("verdict-label").textContent = label;
+      $("verdict-main").textContent = main;
+      $("verdict-sub").innerHTML = sub;
+
+      renderPrCard(pr || null, pulls || []);
+
+      const meta = $("meta");
+      meta.innerHTML = metaRows
+        .map(
+          ([k, v]) =>
+            `<div class="meta-row"><dt>${k}</dt><dd>${v}</dd></div>`
+        )
+        .join("");
+
+      const list = $("all-tags");
+      const details = $("all-tags-details");
+      if (!containing || !containing.length) {
+        details.hidden = true;
+        list.innerHTML = "";
+      } else {
+        details.hidden = false;
+        $("all-tags-summary").textContent = `${containing.length} tag${
+          containing.length === 1 ? "" : "s"
+        } contain this commit`;
+        list.innerHTML = containing
+          .map(
+            (r) =>
+              `<li><a href="${r.url}" target="_blank" rel="noopener">${escapeHtml(
+                r.tag
+              )}${r.prerelease ? " (pre)" : ""}</a><span class="tag-date">${formatDate(
+                r.publishedAt
+              )}</span></li>`
+          )
+          .join("");
+      }
+    }
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submit = $("submit");
+      submit.disabled = true;
+      $("result").hidden = true;
+      $("result").classList.remove("visible");
+      $("pr-card").hidden = true;
+
+      try {
+        const { owner, repo } = parseRepo($("repo").value);
+        const shaInput = $("commit").value.trim();
+        if (!/^[0-9a-fA-F]{4,40}$/.test(shaInput)) {
+          throw new Error("Commit must be a hex SHA (at least 4 characters).");
+        }
+
+        const mode = selectedMode();
+        const includePrerelease = $("include-prerelease").checked;
+
+        setStatus("Resolving commit…");
+        const commit = await resolveCommit(owner, repo, shaInput);
+        const fullSha = commit.sha;
+        const shortSha = fullSha.slice(0, 7);
+        const commitUrl = commit.html_url;
+        const commitMsg = (commit.commit?.message || "").split("\n")[0];
+
+        let lookupSha = fullSha;
+        let pr = null;
+        let pulls = [];
+        let mergeNote = null;
+        // Only tags/releases at or after this time can contain the commit.
+        let sinceMs = commitTimestamp(commit);
+        let sinceLabel = "Commit date";
+
+        if (mode === "pr") {
+          setStatus("Finding pull requests for this commit…");
+          pulls = await fetchPullsForCommit(owner, repo, fullSha);
+          pr = pickPrimaryPull(pulls);
+
+          if (!pr) {
+            showResult({
+              verdictClass: "missing",
+              label: "No pull request",
+              main: "No PR linked to this commit",
+              sub: "GitHub did not associate this SHA with any pull request. Try Direct SHA mode.",
+              metaRows: [
+                ["Commit", `<a href="${commitUrl}" target="_blank" rel="noopener">${shortSha}</a>`],
+                ["Message", escapeHtml(commitMsg || "—")],
+              ],
+              containing: [],
+              pr: null,
+              pulls: [],
+            });
+            setStatus(`Done${rateNote()}`);
+            return;
+          }
+
+          if (pr.merged_at && !pr.merge_commit_sha) {
+            setStatus(`Loading PR #${pr.number} details…`);
+            pr = await fetchPull(owner, repo, pr.number);
+          }
+
+          if (!pr.merged_at) {
+            showResult({
+              verdictClass: "missing",
+              label: "PR not merged",
+              main: `#${pr.number} is not merged`,
+              sub: `Found <a href="${pr.html_url}" target="_blank" rel="noopener">${escapeHtml(
+                pr.title
+              )}</a>, but it has not been merged yet.`,
+              metaRows: [
+                ["Commit", `<a href="${commitUrl}" target="_blank" rel="noopener">${shortSha}</a>`],
+                ["Message", escapeHtml(commitMsg || "—")],
+                ["PR state", escapeHtml(pr.state)],
+              ],
+              containing: [],
+              pr,
+              pulls,
+            });
+            setStatus(`Done${rateNote()}`);
+            return;
+          }
+
+          if (!pr.merge_commit_sha) {
+            showResult({
+              verdictClass: "missing",
+              label: "No merge commit",
+              main: `PR #${pr.number} has no merge SHA`,
+              sub: "The PR is marked merged but GitHub did not return a merge commit SHA.",
+              metaRows: [
+                ["Commit", `<a href="${commitUrl}" target="_blank" rel="noopener">${shortSha}</a>`],
+                ["Merged", formatDateTime(pr.merged_at)],
+              ],
+              containing: [],
+              pr,
+              pulls,
+            });
+            setStatus(`Done${rateNote()}`);
+            return;
+          }
+
+          lookupSha = pr.merge_commit_sha;
+          mergeNote =
+            lookupSha === fullSha
+              ? "Merge commit matches the input SHA."
+              : "Using the PR merge commit on the base branch (squash/rebase-safe).";
+          // Prefer merge time — tags before the PR landed cannot contain the merge commit.
+          if (pr.merged_at) {
+            sinceMs = Date.parse(pr.merged_at);
+            sinceLabel = "PR merged";
+          }
+        }
+
+        setStatus(`Loading tags for ${owner}/${repo}…`);
+        const { items, source, trimmedOlder, dateFiltered } =
+          await fetchReleaseCandidates(owner, repo, includePrerelease, sinceMs);
+
+        if (!items.length) {
+          showResult({
+            verdictClass: "missing",
+            label: "No tags",
+            main: "No version tags found",
+            sub:
+              dateFiltered && trimmedOlder
+                ? `No version tags/releases after ${formatDateTime(
+                    new Date(sinceMs).toISOString()
+                  )}.`
+                : `No GitHub Releases or version-like git tags (e.g. 1.2.3) in <strong>${escapeHtml(
+                    owner
+                  )}/${escapeHtml(repo)}</strong>.`,
+            metaRows: [
+              ["Commit", `<a href="${commitUrl}" target="_blank" rel="noopener">${shortSha}</a>`],
+              ["Message", escapeHtml(commitMsg || "—")],
+            ],
+            containing: [],
+            pr,
+            pulls,
+          });
+          setStatus(`Done${rateNote()}`);
+          return;
+        }
+
+        setStatus(`Checking ${items.length} ${source}…`);
+        const { first, containing, checks } = await findContaining(
+          owner,
+          repo,
+          items,
+          lookupSha,
+          (n, tag) => setStatus(`Compare #${n}: ${tag}…`)
+        );
+
+        const baseMeta = [
+          ["Commit", `<a href="${commitUrl}" target="_blank" rel="noopener">${shortSha}</a>`],
+          ["Message", escapeHtml(commitMsg || "—")],
+        ];
+        if (pr) {
+          baseMeta.push([
+            "Merge commit",
+            `<a href="https://github.com/${owner}/${repo}/commit/${lookupSha}" target="_blank" rel="noopener">${lookupSha.slice(0, 7)}</a>`,
+          ]);
+          if (mergeNote) baseMeta.push(["Note", escapeHtml(mergeNote)]);
+        }
+        baseMeta.push(["Tag source", escapeHtml(source)]);
+        if (sinceMs != null && dateFiltered) {
+          baseMeta.push([
+            "Only after",
+            `${formatDateTime(new Date(sinceMs).toISOString())} (${sinceLabel})`,
+          ]);
+        }
+        if (trimmedOlder) {
+          baseMeta.push(["Older tags", "Skipped (before commit/merge)"]);
+        }
+
+        if (!first) {
+          showResult({
+            verdictClass: "missing",
+            label: "Not in any release",
+            main: "Not shipped yet",
+            sub: pr
+              ? `PR #${pr.number} merged, but its merge commit is not in any of the ${items.length} candidate tags yet.`
+              : `Commit is not reachable from any of the ${items.length} candidate tags.`,
+            metaRows: [
+              ...baseMeta,
+              ["Candidates", String(items.length)],
+              ["API compares", String(checks)],
+            ],
+            containing: [],
+            pr,
+            pulls,
+          });
+          setStatus(`Done${rateNote()}`);
+          return;
+        }
+
+        showResult({
+          verdictClass: "found",
+          label: "First release",
+          main: first.tag,
+          sub: `${
+            first.publishedAt
+              ? `Published ${formatDate(first.publishedAt)} · `
+              : ""
+          }<a href="${first.url}" target="_blank" rel="noopener">view tag</a>${
+            pr
+              ? ` · via <a href="${pr.html_url}" target="_blank" rel="noopener">#${pr.number}</a>`
+              : ""
+          }`,
+          metaRows: [
+            ...baseMeta,
+            ["Also in", `${containing.length} tag${containing.length === 1 ? "" : "s"}`],
+            ["API compares", `${checks} across ${items.length} candidates`],
+          ],
+          containing,
+          pr,
+          pulls,
+        });
+        setStatus(`Done${rateNote()}`);
+      } catch (err) {
+        setStatus(err.message || String(err), true);
+        showResult({
+          verdictClass: "error-box",
+          label: "Could not look up",
+          main: "Lookup failed",
+          sub: escapeHtml(err.message || String(err)),
+          metaRows: [],
+          containing: [],
+          pr: null,
+          pulls: [],
+        });
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
